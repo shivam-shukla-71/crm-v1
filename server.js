@@ -9,7 +9,8 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(helmet());
 app.use(cors());
-app.use(express.json());
+// Capture raw body for Facebook signature verification
+app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
@@ -19,6 +20,7 @@ app.get('/', (req, res) => {
 
 // API Routes (consolidated)
 app.use('/api/auth', require('./routes/auth.routes'));
+app.use('/webhooks', require('./routes/webhooks.routes'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

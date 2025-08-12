@@ -140,3 +140,77 @@ To use this database:
 2. Update the .env file with your database credentials
 3. The application will automatically connect to this database
 */
+
+-- LEADS: CORE TABLES (MINIMAL: Facebook, Instagram, Website)
+
+-- Non-PII transport, attribution, and minimal context
+CREATE TABLE IF NOT EXISTS lead_meta (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    platform_key ENUM('facebook','instagram','website') NOT NULL,
+    source_lead_id VARCHAR(128) NOT NULL,
+
+    -- Attribution identifiers
+    page_id VARCHAR(64),
+    form_id VARCHAR(64),
+    ad_id VARCHAR(64),
+    campaign_id VARCHAR(64),
+
+    -- Provider created time and receipt time
+    created_time DATETIME NULL,
+    received_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    -- Minimal website context
+    page_url VARCHAR(512),
+    utm_source VARCHAR(100),
+    utm_medium VARCHAR(100),
+    utm_campaign VARCHAR(150),
+
+    -- Simple processing marker
+    status ENUM('received','processed','failed') NOT NULL DEFAULT 'received',
+
+    -- Constraints and indexes
+    UNIQUE KEY uq_platform_source_lead (platform_key, source_lead_id),
+    INDEX idx_created_time (created_time),
+    INDEX idx_form_id (form_id),
+    INDEX idx_page_id (page_id),
+    INDEX idx_campaign_id (campaign_id),
+    INDEX idx_utm_source_campaign (utm_source, utm_campaign)
+);
+
+-- PII and normalized answer values (1:1 with lead_meta)
+CREATE TABLE IF NOT EXISTS lead_data (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    lead_meta_id INT NOT NULL,
+
+    -- Normalized contact fields
+    email VARCHAR(150),
+    phone VARCHAR(30),
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    full_name VARCHAR(200),
+
+    -- Original provider answers
+    raw_field_data JSON,
+
+    -- Consent timestamp if provided
+    consent_time DATETIME,
+
+    -- Denormalized attribution for reporting
+    platform_key ENUM('facebook','instagram','website') NOT NULL,
+    source_page_id VARCHAR(64),
+    source_page_name VARCHAR(150),
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_leaddata_leadmeta FOREIGN KEY (lead_meta_id)
+        REFERENCES lead_meta(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_lead_meta_id (lead_meta_id),
+    INDEX idx_email (email),
+    INDEX idx_phone (phone),
+    INDEX idx_platform_page (platform_key, source_page_id)
+);
+
+-- (Reference tables removed for minimal setup)
+
+-- (Processing/audit/backfill tables removed for minimal setup)
