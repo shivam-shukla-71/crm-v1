@@ -2,6 +2,7 @@ const AuthService = require('../services/auth.service');
 const PasswordService = require('../services/password.service');
 const EmailUpdateService = require('../services/email-update.service');
 const UserService = require('../services/user.service');
+const UserModel = require('../models/user.model');
 const bcrypt = require('bcryptjs');
 
 class AuthController {
@@ -97,6 +98,19 @@ class AuthController {
         }
     }
 
+    static async listUsersByEntity(req, res) {
+        try {
+            const entityId = parseInt(req.params.entityId);
+            if (isNaN(entityId)) {
+                return res.status(400).json({ success: false, message: 'Invalid entity ID' });
+            }
+            const users = await UserService.listUsersByEntity(entityId);
+            return res.json({ success: true, data: users });
+        } catch (error) {
+            return res.status(500).json({ success: false, message: error.message });
+        }
+    }
+
     static async createUser(req, res) {
         try {
             const data = req.validatedData;
@@ -108,8 +122,11 @@ class AuthController {
                 first_name: data.first_name,
                 last_name: data.last_name,
                 role_id: data.role_id || 3,
-                phone: data.phone || null
+                entity_id: data.entity_id,
+                phone: data.phone || null,
+                is_verified:1
             });
+            await UserModel.markVerified(created.id)
             return res.status(201).json({ success: true, data: { id: created.id } });
         } catch (error) {
             return res.status(400).json({ success: false, message: error.message });

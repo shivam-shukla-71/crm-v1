@@ -89,7 +89,8 @@ class JWTUtil {
         return {
             user_id: user.id,
             email: user.email,
-            role_id: user.role_id
+            role_id: user.role_id,
+            entity_id: user.entity_id
         };
     }
 

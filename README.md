@@ -1,85 +1,34 @@
-# CRM System v1.0
+# CRM v1 - Lead Management System
 
-A comprehensive Node.js CRM application with MySQL database integration, built with Express.js and following a clean architecture pattern.
+A Node.js CRM application with MySQL database and unified lead ingestion from multiple sources.
 
-## 🚀 Features
+## Features
 
-- **User Management**: Role-based access control (Admin, Manager, Sales Rep, Support)
-- **Customer Management**: Complete customer lifecycle tracking
-- **Deal Management**: Sales pipeline with multiple stages
-- **Task Management**: Assignable tasks with priorities and due dates
-- **Activity Tracking**: Log of all customer interactions (calls, emails, meetings)
-- **Product Management**: Product catalog with pricing
-- **Reporting**: Built-in views and stored procedures for analytics
-- **Security**: JWT authentication, password hashing, input validation
+1. **User Management**: Different user roles (admin, manager, sales_rep, support)
+2. **Role Management**: Separate roles table for better flexibility
+3. **User Verification**: is_verified field to track verified users
+4. **User Status**: is_active field to enable/disable users
+5. **OTP Management**: Support for verification, password reset, and email update
+6. **Token Management**: Secure tokens for password reset and email update
+7. **Security**: Password hashing support
+8. **Audit Trail**: Timestamp tracking for created_at and updated_at
+9. **Lead Ingestion**: Unified system for Facebook/Instagram Lead Ads and Website Landing Pages
 
-## 🏗️ Project Structure
+## Lead Ingestion Sources
 
-```
-crm-v1/
-├── config/           # Database and configuration files
-├── controllers/      # Business logic handlers
-├── middlewares/      # Custom middleware functions
-├── models/          # Database models and queries
-├── routes/          # API route definitions
-├── services/        # Business logic services
-├── utils/           # Utility functions and helpers
-├── validations/     # Input validation schemas (Zod)
-├── server.js        # Main application entry point
-├── database.sql     # Database setup script
-├── env.example      # Environment variables template
-└── package.json     # Project dependencies and scripts
-```
+### Facebook/Instagram Lead Ads
+- Webhook endpoint: `POST /webhooks/facebook`
+- Verification endpoint: `GET /webhooks/facebook`
+- Automatically fetches full lead data via Facebook Graph API
+- Stores metadata and normalized lead information
 
-## 📋 Prerequisites
+### Website Landing Pages
+- Webhook endpoint: `POST /webhooks/website`
+- Accepts form submissions from landing pages
+- Supports UTM parameters and page attribution
+- Normalizes common field variations
 
-- Node.js (v16 or higher)
-- MySQL (v8.0 or higher)
-- npm or yarn package manager
-
-## 🛠️ Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd crm-v1
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Set up environment variables**
-   ```bash
-   # Copy the example environment file
-   cp env.example .env
-   
-   # Edit .env with your database credentials
-   nano .env
-   ```
-
-4. **Set up the database**
-   ```bash
-   # Connect to your MySQL server
-   mysql -u root -p
-   
-   # Run the database setup script
-   source database.sql
-   ```
-
-5. **Start the application**
-   ```bash
-   # Development mode with auto-reload
-   npm run dev
-   
-   # Production mode
-   npm start
-   ```
-
-## ⚙️ Environment Variables
-
-Create a `.env` file in the root directory with the following variables:
+## Environment Variables
 
 ```env
 # Server Configuration
@@ -95,107 +44,124 @@ DB_PORT=3306
 
 # JWT Configuration
 JWT_SECRET=your_jwt_secret_key_here
-JWT_EXPIRES_IN=24h
+JWT_EXPIRES_IN=72h
 
 # Bcrypt Configuration
 BCRYPT_ROUNDS=12
+
+# Email Configuration (SMTP)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+
+# Facebook Lead Ads / Graph API
+FB_APP_ID=your_facebook_app_id
+FB_APP_SECRET=your_facebook_app_secret
+FB_VERIFY_TOKEN=your_webhook_verify_token
+FB_PAGE_ACCESS_TOKEN=your_long_lived_page_access_token
 ```
 
-## 🗄️ Database Schema
+## Website Lead Submission Format
 
-The database includes the following main tables:
+Send a POST request to `/webhooks/website` with the following structure:
 
-- **users**: User accounts and authentication
-- **customers**: Customer information and management
-- **deals**: Sales opportunities and pipeline
-- **tasks**: Assignable tasks and to-dos
-- **activities**: Customer interaction logs
-- **products**: Product catalog
-- **deal_products**: Many-to-many relationship between deals and products
+```json
+{
+  "platform": "website",
+  "page_url": "https://example.com/landing-page",
+  "page_id": "landing_page_001",
+  "form_id": "contact_form_001",
+  "utm": {
+    "source": "google",
+    "medium": "cpc",
+    "campaign": "summer_sale",
+    "term": "crm software",
+    "content": "banner_ad_001"
+  },
+  "answers": {
+    "email": "user@example.com",
+    "phone": "+15551234567",
+    "first_name": "John",
+    "last_name": "Doe",
+    "full_name": "John Doe",
+    "company": "Acme Corp",
+    "consent_time": "2024-06-10T10:00:00Z"
+  },
+  "created_time": "2024-06-10T10:00:00Z"
+}
+```
 
-### Key Features:
-- Foreign key constraints for data integrity
-- Proper indexing for performance
-- Timestamp tracking for audit trails
-- Enum fields for consistent data values
-- Comprehensive sample data for testing
+## Database Schema
 
-## 📚 API Endpoints
+The system uses two main tables for leads:
 
-### Authentication
-- `POST /api/auth/login` - User login
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/logout` - User logout
+### lead_meta
+Stores non-PII metadata and attribution:
+- `platform_key`: 'facebook', 'instagram', or 'website'
+- `source_lead_id`: Unique identifier from the source
+- `page_id`, `form_id`, `ad_id`, `campaign_id`: Attribution data
+- `page_url`, `utm_*`: Website-specific tracking
+- `status`: 'received', 'processed', or 'failed'
 
-### Users
-- `GET /api/users` - Get all users
-- `GET /api/users/:id` - Get user by ID
-- `PUT /api/users/:id` - Update user
-- `DELETE /api/users/:id` - Delete user
+### lead_data
+Stores PII and normalized lead information:
+- `lead_meta_id`: Foreign key to lead_meta
+- `email`, `phone`, `first_name`, `last_name`, `full_name`: Normalized contact data
+- `raw_field_data`: Original form responses as JSON
+- `platform_key`, `source_page_id`, `source_page_name`: Denormalized attribution
 
-### Customers
-- `GET /api/customers` - Get all customers
-- `GET /api/customers/:id` - Get customer by ID
-- `POST /api/customers` - Create new customer
-- `PUT /api/customers/:id` - Update customer
-- `DELETE /api/customers/:id` - Delete customer
+## Setup Instructions
 
-### Deals
-- `GET /api/deals` - Get all deals
-- `GET /api/deals/:id` - Get deal by ID
-- `POST /api/deals` - Create new deal
-- `PUT /api/deals/:id` - Update deal
-- `DELETE /api/deals/:id` - Delete deal
-
-## 🔧 Development
-
-### Available Scripts
-
-- `npm start` - Start the production server
-- `npm run dev` - Start the development server with nodemon
-- `npm test` - Run tests (to be implemented)
-
-### Code Style
-
-The project follows these architectural principles:
-- **Controllers**: Handle HTTP requests and responses
-- **Services**: Contain business logic
-- **Models**: Handle database operations
-- **Routes**: Define API endpoints
-- **Middlewares**: Handle cross-cutting concerns
-- **Validations**: Input validation using Zod schemas
-
-## 🚀 Deployment
-
-1. **Set production environment variables**
-2. **Build the application** (if using TypeScript)
-3. **Start the production server**
+1. Run the database setup script:
    ```bash
-   npm start
+   mysql -u root -p < database.sql
    ```
 
-## 📝 Contributing
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+3. Configure environment variables in `.env` file
 
-## 📄 License
+4. Start the server:
+   ```bash
+   npm run dev
+   ```
 
-This project is licensed under the ISC License.
+## API Endpoints
 
-## 🤝 Support
+### Authentication
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
+- `POST /api/auth/verify-otp` - OTP verification
+- `POST /api/auth/password/request` - Password reset request
+- `POST /api/auth/password/update` - Password update
 
-For support and questions, please open an issue in the repository.
+### Lead Webhooks
+- `GET /webhooks/facebook` - Facebook webhook verification
+- `POST /webhooks/facebook` - Facebook leadgen webhook
+- `POST /webhooks/website` - Website landing page leads
 
-## 🔄 Version History
+## Testing
 
-- **v1.0.0** - Initial release with basic CRM functionality
-  - User management
-  - Customer management
-  - Deal management
-  - Task management
-  - Activity tracking
-  - Product management
+### Facebook Lead Ads
+1. Set up Facebook app with Lead Ads permissions
+2. Subscribe your Page to the `leadgen` webhook
+3. Use Facebook's Test Lead tool to generate test leads
+4. Verify data appears in database
+
+### Website Leads
+1. Send POST request to `/webhooks/website` with sample data
+2. Verify lead appears in database with `platform_key: 'website'`
+3. Check UTM parameters and page attribution are stored correctly
+
+## Security Features
+
+- JWT-based authentication
+- Password hashing with bcrypt
+- OTP verification for sensitive operations
+- Role-based access control
+- Facebook webhook signature verification
+- Input validation and sanitization

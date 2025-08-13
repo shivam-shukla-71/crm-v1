@@ -1,8 +1,8 @@
 {
     "info": {
-        "name": "CRM v1 - Auth & Users",
+        "name": "CRM v1 - Auth, Users & Entities",
         "_postman_id": "a6a4e5f4-0b20-4a23-9f2a-collection",
-        "description": "Postman collection for CRM v1 authentication, password reset, email update, and admin user management.",
+        "description": "Postman collection for CRM v1 authentication, password reset, email update, admin user management, and entity management.",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "variable": [
@@ -42,9 +42,9 @@
                         },
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"username\": \"john_doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"StrongPass123\",\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"phone\": \"+1234567890\",\n  \"role_id\": 3\n}"
+                            "raw": "{\n  \"username\": \"john_doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"StrongPass123\",\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"phone\": \"+1234567890\",\n  \"role_id\": 3,\n  \"entity_id\": 1\n}"
                         },
-                        "description": "Creates user with is_verified = 0 and sends OTP (rate-limited)."
+                        "description": "Creates user with is_verified = 0 and sends OTP (rate-limited). Now requires entity_id."
                     }
                 },
                 {
@@ -100,7 +100,7 @@
                             "mode": "raw",
                             "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"StrongPass123\"\n}"
                         },
-                        "description": "Returns single access token (72h) and user profile {username, email, phone, role}."
+                        "description": "Returns single access token (72h) and user profile {username, email, phone, role, entity}. Entity includes id, name."
                     }
                 }
             ]
@@ -299,7 +299,34 @@
                                 "users"
                             ]
                         },
-                        "description": "Requires role_id 1 (admin) or 2 (manager)."
+                        "description": "Requires role_id 1 (admin) or 2 (manager). Returns users with entity information."
+                    }
+                },
+                {
+                    "name": "List Users by Entity (Manager/Admin)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/users/entity/:entityId",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "users",
+                                "entity",
+                                ":entityId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "entityId",
+                                    "value": "1"
+                                }
+                            ]
+                        },
+                        "description": "Requires role_id 1 (admin) or 2 (manager). Lists users filtered by specific entity."
                     }
                 },
                 {
@@ -325,9 +352,9 @@
                         },
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"username\": \"new_user\",\n  \"email\": \"new_user@example.com\",\n  \"password\": \"StrongPass123\",\n  \"first_name\": \"New\",\n  \"last_name\": \"User\",\n  \"phone\": \"+1230000000\",\n  \"role_id\": 3\n}"
+                            "raw": "{\n  \"username\": \"new_user\",\n  \"email\": \"new_user@example.com\",\n  \"password\": \"StrongPass123\",\n  \"first_name\": \"New\",\n  \"last_name\": \"User\",\n  \"phone\": \"+1230000000\",\n  \"role_id\": 3,\n  \"entity_id\": 1\n}"
                         },
-                        "description": "Admin-only create. User is created unverified (follow normal verification flow if needed)."
+                        "description": "Admin-only create. User is created unverified (follow normal verification flow if needed). Now requires entity_id."
                     }
                 },
                 {
@@ -360,9 +387,9 @@
                         },
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"first_name\": \"Johnny\",\n  \"last_name\": \"Doe\",\n  \"phone\": \"+1234567899\",\n  \"is_active\": true\n}"
+                            "raw": "{\n  \"first_name\": \"Johnny\",\n  \"last_name\": \"Doe\",\n  \"phone\": \"+1234567899\",\n  \"is_active\": true,\n  \"entity_id\": 1\n}"
                         },
-                        "description": "Manager can manage role_id >= 3; Admin can manage any."
+                        "description": "Manager can manage role_id >= 3; Admin can manage any. Can update entity_id."
                     }
                 },
                 {
@@ -425,6 +452,176 @@
                             ]
                         },
                         "description": "Prevents self-deletion; Manager can delete only role_id >= 3."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Entities (Admin Only)",
+            "auth": {
+                "type": "bearer",
+                "bearer": [
+                    {
+                        "key": "token",
+                        "value": "{{access_token}}",
+                        "type": "string"
+                    }
+                ]
+            },
+            "item": [
+                {
+                    "name": "List All Entities",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/entities",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "entities"
+                            ]
+                        },
+                        "description": "Admin only. Lists all entities with id and name."
+                    }
+                },
+                {
+                    "name": "Get Entity by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/entities/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "entities",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        },
+                        "description": "Admin only. Gets entity by ID."
+                    }
+                },
+                {
+                    "name": "Get Entity by Name",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/entities/name/:name",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "entities",
+                                "name",
+                                ":name"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "name",
+                                    "value": "fxcareers"
+                                }
+                            ]
+                        },
+                        "description": "Admin only. Gets entity by name."
+                    }
+                },
+                {
+                    "name": "Create New Entity",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/entities",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "entities"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"newcompany\"\n}"
+                        },
+                        "description": "Admin only. Creates a new entity. Name must be alphanumeric with underscores only."
+                    }
+                },
+                {
+                    "name": "Update Entity",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/entities/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "entities",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"updatedcompany\"\n}"
+                        },
+                        "description": "Admin only. Updates entity name. Name must be alphanumeric with underscores only."
+                    }
+                },
+                {
+                    "name": "Delete Entity",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/entities/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "entities",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "1"
+                                }
+                            ]
+                        },
+                        "description": "Admin only. Deletes entity. Cannot delete if entity has associated users or leads."
                     }
                 }
             ]

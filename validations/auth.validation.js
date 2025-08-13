@@ -8,7 +8,8 @@ const registerUserSchema = z.object({
     first_name: z.string().min(2).max(50).regex(/^[a-zA-Z\s]+$/),
     last_name: z.string().min(2).max(50).regex(/^[a-zA-Z\s]+$/),
     phone: z.string().regex(/^\+?[\d\s\-\(\)]+$/).max(20).optional(),
-    role_id: z.number().int().min(1).max(4).optional().default(3)
+    role_id: z.number().int().min(1).max(4).optional().default(3),
+    entity_id: z.number().int().positive()
 });
 
 const loginUserSchema = z.object({

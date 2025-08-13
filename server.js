@@ -20,6 +20,7 @@ app.get('/', (req, res) => {
 
 // API Routes (consolidated)
 app.use('/api/auth', require('./routes/auth.routes'));
+app.use('/api/entities', require('./routes/entity.routes'));
 app.use('/webhooks', require('./routes/webhooks.routes'));
 
 // Error handling middleware

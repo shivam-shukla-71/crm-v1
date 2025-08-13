@@ -5,6 +5,10 @@ class UserService {
         return UserModel.listUsers();
     }
 
+    static async listUsersByEntity(entityId) {
+        return UserModel.listUsersByEntity(entityId);
+    }
+
     static async createUser(userInput) {
         // Creation by admin marks verified true by default? Keep as false to follow flow
         return UserModel.createUser({
@@ -23,6 +27,10 @@ class UserService {
 
     static async deleteUser(userId) {
         return UserModel.deleteUser(userId);
+    }
+
+    static async findByEntity(entityId) {
+        return UserModel.findByEntity(entityId);
     }
 }
 

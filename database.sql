@@ -7,6 +7,14 @@ CREATE DATABASE IF NOT EXISTS crm_database;
 USE crm_database;
 
 -- =====================================================
+-- ENTITIES TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS entities (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) UNIQUE NOT NULL
+);
+
+-- =====================================================
 -- ROLES TABLE
 -- =====================================================
 CREATE TABLE IF NOT EXISTS roles (
@@ -26,6 +34,7 @@ CREATE TABLE IF NOT EXISTS users (
     first_name VARCHAR(50) NOT NULL,
     last_name VARCHAR(50) NOT NULL,
     role_id INT NOT NULL,
+    entity_id INT NOT NULL,
     phone VARCHAR(20),
     is_active BOOLEAN DEFAULT TRUE,
     is_verified BOOLEAN DEFAULT FALSE,
@@ -33,9 +42,11 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE RESTRICT,
+    FOREIGN KEY (entity_id) REFERENCES entities(id) ON DELETE RESTRICT,
     INDEX idx_email (email),
     INDEX idx_username (username),
     INDEX idx_role_id (role_id),
+    INDEX idx_entity_id (entity_id),
     INDEX idx_is_verified (is_verified),
     INDEX idx_is_active (is_active)
 );
@@ -89,6 +100,14 @@ CREATE TABLE IF NOT EXISTS email_update_tokens (
 );
 
 -- =====================================================
+-- INSERT ENTITIES DATA
+-- =====================================================
+INSERT INTO entities (name) VALUES
+('fxcareers'),
+('yamarkets'),
+('nxgmarkets');
+
+-- =====================================================
 -- INSERT ROLES DATA
 -- =====================================================
 
@@ -104,10 +123,11 @@ INSERT INTO roles (role) VALUES
 -- =====================================================
 
 -- Insert sample users (password_hash is 'password123' hashed with bcrypt)
-INSERT INTO users (username, email, password_hash, first_name, last_name, role_id, phone, is_verified) VALUES
-('admin', 'admin@crm.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/RK.s5u.Gi', 'Admin', 'User', 1, '+1234567890', TRUE),
-('manager1', 'manager@crm.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/RK.s5u.Gi', 'John', 'Manager', 2, '+1234567891', TRUE),
-('sales1', 'sales@crm.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/RK.s5u.Gi', 'Jane', 'Sales', 3, '+1234567892', FALSE);
+-- Note: entity_id 1 corresponds to 'fxcareers'
+INSERT INTO users (username, email, password_hash, first_name, last_name, role_id, entity_id, phone, is_verified) VALUES
+('admin', 'admin@crm.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/RK.s5u.Gi', 'Admin', 'User', 1, 1, '+1234567890', TRUE),
+('manager1', 'manager@crm.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/RK.s5u.Gi', 'John', 'Manager', 2, 1, '+1234567891', TRUE),
+('sales1', 'sales@crm.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/RK.s5u.Gi', 'Jane', 'Sales', 3, 1, '+1234567892', FALSE);
 
 -- =====================================================
 -- COMMENTS AND DOCUMENTATION
@@ -117,20 +137,22 @@ INSERT INTO users (username, email, password_hash, first_name, last_name, role_i
 This database schema is designed for a basic CRM system with user management and authentication.
 
 Features:
-1. User Management: Different user roles (admin, manager, sales_rep, support)
-2. Role Management: Separate roles table for better flexibility
-3. User Verification: is_verified field to track verified users
-4. User Status: is_active field to enable/disable users
-5. OTP Management: Support for verification, password reset, and email update
-6. Token Management: Secure tokens for password reset and email update
-7. Security: Password hashing support
-8. Audit Trail: Timestamp tracking for created_at and updated_at
+1. Entity Management: Multi-tenant support with separate company entities
+2. User Management: Different user roles (admin, manager, sales_rep, support) with entity association
+3. Role Management: Separate roles table for better flexibility
+4. User Verification: is_verified field to track verified users
+5. User Status: is_active field to enable/disable users
+6. OTP Management: Support for verification, password reset, and email update
+7. Token Management: Secure tokens for password reset and email update
+8. Security: Password hashing support
+9. Audit Trail: Timestamp tracking for created_at and updated_at
 
 Key Features:
 - Foreign key constraints for data integrity
 - Proper indexing for performance
 - Timestamp tracking for audit trails
 - Role-based access control
+- Entity-based multi-tenancy
 - OTP rate limiting support (3 per hour, 5 min expiry)
 - Token expiration management
 - Sample data for testing
@@ -146,6 +168,7 @@ To use this database:
 -- Non-PII transport, attribution, and minimal context
 CREATE TABLE IF NOT EXISTS lead_meta (
     id INT PRIMARY KEY AUTO_INCREMENT,
+    entity_id INT NOT NULL,
     platform_key ENUM('facebook','instagram','website') NOT NULL,
     source_lead_id VARCHAR(128) NOT NULL,
 
@@ -169,7 +192,9 @@ CREATE TABLE IF NOT EXISTS lead_meta (
     status ENUM('received','processed','failed') NOT NULL DEFAULT 'received',
 
     -- Constraints and indexes
-    UNIQUE KEY uq_platform_source_lead (platform_key, source_lead_id),
+    FOREIGN KEY (entity_id) REFERENCES entities(id) ON DELETE RESTRICT,
+    UNIQUE KEY uq_platform_source_lead (platform_key, source_lead_id, entity_id),
+    INDEX idx_entity_id (entity_id),
     INDEX idx_created_time (created_time),
     INDEX idx_form_id (form_id),
     INDEX idx_page_id (page_id),
@@ -181,6 +206,7 @@ CREATE TABLE IF NOT EXISTS lead_meta (
 CREATE TABLE IF NOT EXISTS lead_data (
     id INT PRIMARY KEY AUTO_INCREMENT,
     lead_meta_id INT NOT NULL,
+    entity_id INT NOT NULL,
 
     -- Normalized contact fields
     email VARCHAR(150),
@@ -205,7 +231,10 @@ CREATE TABLE IF NOT EXISTS lead_data (
 
     CONSTRAINT fk_leaddata_leadmeta FOREIGN KEY (lead_meta_id)
         REFERENCES lead_meta(id) ON DELETE CASCADE,
+    CONSTRAINT fk_leaddata_entity FOREIGN KEY (entity_id)
+        REFERENCES entities(id) ON DELETE RESTRICT,
     UNIQUE KEY uq_lead_meta_id (lead_meta_id),
+    INDEX idx_entity_id (entity_id),
     INDEX idx_email (email),
     INDEX idx_phone (phone),
     INDEX idx_platform_page (platform_key, source_page_id)

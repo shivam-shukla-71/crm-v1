@@ -20,6 +20,7 @@ router.post('/email/verify', verifyToken, validateRequest(emailUpdateVerifySchem
 
 // Admin/manager user management
 router.get('/users', verifyToken, requireManagerOrAdmin, AuthController.listUsers);
+router.get('/users/entity/:entityId', verifyToken, requireManagerOrAdmin, AuthController.listUsersByEntity);
 router.post('/users', verifyToken, requireAdmin, validateRequest(registerUserSchema), AuthController.createUser);
 router.put('/users/:id', verifyToken, canManageUser, AuthController.updateUser);
 router.patch('/users/:id/role', verifyToken, canChangeRole, AuthController.changeUserRole);

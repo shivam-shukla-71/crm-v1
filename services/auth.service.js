@@ -22,7 +22,9 @@ class AuthService {
             first_name: userInput.first_name,
             last_name: userInput.last_name,
             role_id: userInput.role_id || 3,
-            phone: userInput.phone || null
+            phone: userInput.phone || null,
+            entity_id:userInput.entity_id
+
         });
 
         // Send verification OTP (rate-limited)
@@ -73,7 +75,11 @@ class AuthService {
                 username: user.username,
                 email: user.email,
                 phone: user.phone,
-                role: user.role
+                role: user.role,
+                entity: {
+                    id: user.entity_id,
+                    name: user.entity_name
+                }
             },
             access_token: token,
             expires_in: process.env.JWT_EXPIRES_IN || '72h'

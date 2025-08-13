@@ -3,11 +3,26 @@ const { executeQuery } = require('../config/database');
 class LeadModel {
     static async upsertLeadMeta(meta) {
         const insertQuery = `
-      INSERT INTO lead_meta (platform_key, source_lead_id, page_id, form_id, ad_id, campaign_id, created_time, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      ON DUPLICATE KEY UPDATE page_id = VALUES(page_id), form_id = VALUES(form_id), ad_id = VALUES(ad_id), campaign_id = VALUES(campaign_id), created_time = COALESCE(lead_meta.created_time, VALUES(created_time)), status = VALUES(status)
+      INSERT INTO lead_meta (platform_key, source_lead_id, page_id, form_id, ad_id, campaign_id, created_time, status, page_url, utm_source, utm_medium, utm_campaign, utm_term, utm_content)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE page_id = VALUES(page_id), form_id = VALUES(form_id), ad_id = VALUES(ad_id), campaign_id = VALUES(campaign_id), created_time = COALESCE(lead_meta.created_time, VALUES(created_time)), status = VALUES(status), page_url = VALUES(page_url), utm_source = VALUES(utm_source), utm_medium = VALUES(utm_medium), utm_campaign = VALUES(utm_campaign), utm_term = VALUES(utm_term), utm_content = VALUES(utm_content)
     `;
-        const params = [meta.platform_key, meta.source_lead_id, meta.page_id, meta.form_id, meta.ad_id, meta.campaign_id, meta.created_time || null, meta.status || 'received'];
+        const params = [
+            meta.platform_key,
+            meta.source_lead_id,
+            meta.page_id,
+            meta.form_id,
+            meta.ad_id,
+            meta.campaign_id,
+            meta.created_time || null,
+            meta.status || 'received',
+            meta.page_url || null,
+            meta.utm_source || null,
+            meta.utm_medium || null,
+            meta.utm_campaign || null,
+            meta.utm_term || null,
+            meta.utm_content || null,
+        ];
         const result = await executeQuery(insertQuery, params);
         if (result.insertId) return result.insertId;
         const row = await executeQuery('SELECT id FROM lead_meta WHERE platform_key = ? AND source_lead_id = ? LIMIT 1', [meta.platform_key, meta.source_lead_id]);

@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { upsertLeadMeta, upsertLeadDataFromGraph } = require('../services/fb-leads.service');
+const { upsertWebsiteLead } = require('../services/website-leads.service');
 
 const FB_APP_SECRET = process.env.FB_APP_SECRET || '';
 const FB_VERIFY_TOKEN = process.env.FB_VERIFY_TOKEN || '';
@@ -63,3 +64,51 @@ exports.facebookWebhookPost = async (req, res) => {
 };
 
 
+exports.websiteWebhookPost = async (req, res) => {
+    try {
+        const body = req.body;
+        if (!body || !body.platform || body.platform !== 'website') {
+            return res.status(400).json({ error: 'Invalid platform or missing platform' });
+        }
+
+        // Validate required fields
+        if (!body.answers || (!body.answers.email && !body.answers.phone)) {
+            return res.status(400).json({ error: 'Missing required fields: email or phone required' });
+        }
+
+        // Generate unique source_lead_id for website leads
+        const timestamp = Date.now();
+        const randomId = Math.random().toString(36).substring(2, 15);
+        const sourceLeadId = `website_${timestamp}_${randomId}`;
+
+        const meta = {
+            platform_key: 'website',
+            source_lead_id: sourceLeadId,
+            page_id: body.page_id || null,
+            form_id: body.form_id || null,
+            ad_id: body.ad_id || null,
+            campaign_id: body.campaign_id || null,
+            created_time: body.created_time ? new Date(body.created_time) : new Date(),
+            status: 'received',
+            page_url: body.page_url || null,
+            utm_source: body.utm?.source || null,
+            utm_medium: body.utm?.medium || null,
+            utm_campaign: body.utm?.campaign || null,
+            utm_term: body.utm?.term || null,
+            utm_content: body.utm?.content || null,
+        };
+
+        const leadMetaId = await upsertLeadMeta(meta);
+        await upsertWebsiteLead(leadMetaId, body.answers, meta);
+
+        res.status(200).json({
+            success: true,
+            lead_id: leadMetaId,
+            message: 'Lead received successfully'
+        });
+
+    } catch (err) {
+        console.error('Website webhook processing error:', err.message);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};

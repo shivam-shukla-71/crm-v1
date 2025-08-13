@@ -3,8 +3,8 @@ const { executeQuery } = require('../config/database');
 class UserModel {
     static async createUser(user) {
         const query = `
-      INSERT INTO users (username, email, password_hash, first_name, last_name, role_id, phone, is_active, is_verified)
-      VALUES (?, ?, ?, ?, ?, ?, ?, TRUE, FALSE)
+      INSERT INTO users (username, email, password_hash, first_name, last_name, role_id, entity_id, phone, is_active, is_verified)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE, FALSE)
     `;
         const params = [
             user.username,
@@ -13,6 +13,7 @@ class UserModel {
             user.first_name,
             user.last_name,
             user.role_id || 3,
+            user.entity_id,
             user.phone || null
         ];
         const result = await executeQuery(query, params);
@@ -21,8 +22,10 @@ class UserModel {
 
     static async findByEmail(email) {
         const query = `
-      SELECT u.*, r.role FROM users u
+      SELECT u.*, r.role, e.name as entity_name
+      FROM users u
       JOIN roles r ON r.id = u.role_id
+      JOIN entities e ON e.id = u.entity_id
       WHERE u.email = ?
       LIMIT 1
     `;
@@ -32,8 +35,10 @@ class UserModel {
 
     static async findById(id) {
         const query = `
-      SELECT u.*, r.role FROM users u
+      SELECT u.*, r.role, e.name as entity_name
+      FROM users u
       JOIN roles r ON r.id = u.role_id
+      JOIN entities e ON e.id = u.entity_id
       WHERE u.id = ?
       LIMIT 1
     `;
@@ -73,16 +78,33 @@ class UserModel {
 
     static async listUsers() {
         const query = `
-      SELECT u.id, u.username, u.email, u.first_name, u.last_name, u.phone, u.is_active, u.is_verified, u.role_id, r.role,
+      SELECT u.id, u.username, u.email, u.first_name, u.last_name, u.phone, u.is_active, u.is_verified, 
+             u.role_id, r.role, u.entity_id, e.name as entity_name,
              u.created_at, u.updated_at
-      FROM users u JOIN roles r ON r.id = u.role_id
+      FROM users u 
+      JOIN roles r ON r.id = u.role_id
+      JOIN entities e ON e.id = u.entity_id
       ORDER BY u.id DESC
     `;
         return executeQuery(query);
     }
 
+    static async listUsersByEntity(entityId) {
+        const query = `
+      SELECT u.id, u.username, u.email, u.first_name, u.last_name, u.phone, u.is_active, u.is_verified, 
+             u.role_id, r.role, u.entity_id, e.name as entity_name,
+             u.created_at, u.updated_at
+      FROM users u 
+      JOIN roles r ON r.id = u.role_id
+      JOIN entities e ON e.id = u.entity_id
+      WHERE u.entity_id = ?
+      ORDER BY u.id DESC
+    `;
+        return executeQuery(query, [entityId]);
+    }
+
     static async updateUser(userId, fields) {
-        const allowed = ['first_name', 'last_name', 'phone', 'is_active'];
+        const allowed = ['first_name', 'last_name', 'phone', 'is_active', 'entity_id'];
         const sets = [];
         const params = [];
         for (const [key, value] of Object.entries(fields)) {
@@ -108,6 +130,20 @@ class UserModel {
         const query = `DELETE FROM users WHERE id = ?`;
         await executeQuery(query, [userId]);
         return true;
+    }
+
+    static async findByEntity(entityId) {
+        const query = `
+      SELECT u.id, u.username, u.email, u.first_name, u.last_name, u.phone, u.is_active, u.is_verified, 
+             u.role_id, r.role, u.entity_id, e.name as entity_name,
+             u.created_at, u.updated_at
+      FROM users u 
+      JOIN roles r ON r.id = u.role_id
+      JOIN entities e ON e.id = u.entity_id
+      WHERE u.entity_id = ?
+      ORDER BY u.id DESC
+    `;
+        return executeQuery(query, [entityId]);
     }
 }
 
