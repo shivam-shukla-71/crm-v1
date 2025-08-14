@@ -6,7 +6,7 @@ const LeadModel = require('../models/lead.model');
 const FB_GRAPH_BASE = 'https://graph.facebook.com/v18.0';
 const FB_PAGE_ACCESS_TOKEN = process.env.FB_PAGE_ACCESS_TOKEN || '';
 const FB_APP_SECRET = process.env.FB_APP_SECRET || '';
-
+    
 function buildAppSecretProof(token) {
     if (!token || !FB_APP_SECRET) return null;
     return crypto.createHmac('sha256', FB_APP_SECRET).update(token).digest('hex');
@@ -14,8 +14,8 @@ function buildAppSecretProof(token) {
 
 exports.upsertLeadMeta = async (meta) => LeadModel.upsertLeadMeta(meta);
 
-exports.upsertLeadDataFromGraph = async ({ leadMetaId, leadgenId, pageId, formId }) => {
-    if (!leadMetaId || !leadgenId) return;
+exports.upsertLeadDataFromGraph = async ({ leadMetaId, leadgenId, pageId, formId, entityId }) => {
+    if (!leadMetaId || !leadgenId || !entityId) return;
 
     const params = new URLSearchParams();
     params.append('fields', 'created_time,ad_id,adset_id,campaign_id,form_id,field_data');
@@ -29,7 +29,8 @@ exports.upsertLeadDataFromGraph = async ({ leadMetaId, leadgenId, pageId, formId
     const fieldArray = Array.isArray(data.field_data) ? data.field_data : [];
     const normalized = normalizeFieldData(fieldArray);
 
-    await LeadModel.upsertLeadData(leadMetaId, {
+    const leadData = await LeadModel.upsertLeadData(leadMetaId, {
+        entity_id: entityId,
         email: normalized.email,
         phone: normalized.phone,
         first_name: normalized.first_name,
@@ -40,10 +41,16 @@ exports.upsertLeadDataFromGraph = async ({ leadMetaId, leadgenId, pageId, formId
         platform_key: 'facebook',
         source_page_id: pageId || null,
         source_page_name: null,
+        status: 'new',
+        assigned_user_id: null,
+        assigned_at: null,
     });
 
-    // Mark processed in lead_meta
-    await executeQuery('UPDATE lead_meta SET status = ? WHERE id = ?', ['processed', leadMetaId]);
+    // Mark as processed in lead_meta
+    await executeQuery('UPDATE lead_meta SET processing_status = ? WHERE id = ?', ['processed', leadMetaId]);
+
+    // Return the lead ID from lead_data (this is the main lead identifier)
+    return leadData.insertId || leadData.affectedRows;
 };
 
 function normalizeFieldData(fieldArray) {

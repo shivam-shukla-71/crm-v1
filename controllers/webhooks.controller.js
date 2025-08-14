@@ -36,33 +36,52 @@ exports.facebookWebhookPost = async (req, res) => {
     try {
         const body = req.body;
         if (!body || body.object !== 'page' || !Array.isArray(body.entry)) return;
+
         for (const entry of body.entry) {
             if (!Array.isArray(entry.changes)) continue;
+
             for (const change of entry.changes) {
                 if (change.field !== 'leadgen') continue;
+
                 const val = change.value || {};
                 const leadgenId = val.leadgen_id || val.lead_id || val.leadgenId;
                 if (!leadgenId) continue;
 
+                // Extract page_id to determine entity
+                const pageId = val.page_id ? String(val.page_id) : null;
+
+                // TODO: Implement page_id to entity_id mapping
+                // For now, use default entity_id = 1 (fxcareers)
+                const entityId = 1; // This should come from a mapping table
+
                 const meta = {
+                    entity_id: entityId,
                     platform_key: 'facebook',
                     source_lead_id: String(leadgenId),
-                    page_id: val.page_id ? String(val.page_id) : null,
+                    page_id: pageId,
                     form_id: val.form_id ? String(val.form_id) : null,
                     ad_id: val.ad_id ? String(val.ad_id) : null,
                     campaign_id: val.campaign_id ? String(val.campaign_id) : null,
                     created_time: val.created_time ? new Date(val.created_time * 1000) : null,
-                    status: 'received',
+                    processing_status: 'received',
                 };
+
                 const leadMetaId = await upsertLeadMeta(meta);
-                await upsertLeadDataFromGraph({ leadMetaId, leadgenId: String(leadgenId), pageId: meta.page_id, formId: meta.form_id });
+                const leadId = await upsertLeadDataFromGraph({
+                    leadMetaId,
+                    leadgenId: String(leadgenId),
+                    pageId: meta.page_id,
+                    formId: meta.form_id,
+                    entityId: meta.entity_id
+                });
+
+                console.log(`Facebook lead processed: lead_id=${leadId}, leadgen_id=${leadgenId}, entity_id=${entityId}`);
             }
         }
     } catch (err) {
         console.error('Webhook processing error:', err.message);
     }
 };
-
 
 exports.websiteWebhookPost = async (req, res) => {
     try {
@@ -76,12 +95,16 @@ exports.websiteWebhookPost = async (req, res) => {
             return res.status(400).json({ error: 'Missing required fields: email or phone required' });
         }
 
+        // Extract entity_id from request or use default
+        const entityId = body.entity_id || 1; // Default to entity 1 (fxcareers)
+
         // Generate unique source_lead_id for website leads
         const timestamp = Date.now();
         const randomId = Math.random().toString(36).substring(2, 15);
         const sourceLeadId = `website_${timestamp}_${randomId}`;
 
         const meta = {
+            entity_id: entityId,
             platform_key: 'website',
             source_lead_id: sourceLeadId,
             page_id: body.page_id || null,
@@ -89,7 +112,7 @@ exports.websiteWebhookPost = async (req, res) => {
             ad_id: body.ad_id || null,
             campaign_id: body.campaign_id || null,
             created_time: body.created_time ? new Date(body.created_time) : new Date(),
-            status: 'received',
+            processing_status: 'received',
             page_url: body.page_url || null,
             utm_source: body.utm?.source || null,
             utm_medium: body.utm?.medium || null,
@@ -99,11 +122,11 @@ exports.websiteWebhookPost = async (req, res) => {
         };
 
         const leadMetaId = await upsertLeadMeta(meta);
-        await upsertWebsiteLead(leadMetaId, body.answers, meta);
+        const leadId = await upsertWebsiteLead(leadMetaId, body.answers, meta);
 
         res.status(200).json({
             success: true,
-            lead_id: leadMetaId,
+            lead_id: leadId,
             message: 'Lead received successfully'
         });
 

@@ -8,6 +8,7 @@ exports.upsertWebsiteLead = async (leadMetaId, answers, meta) => {
 
     // Prepare lead data
     const leadData = {
+        entity_id: meta.entity_id,
         email: normalized.email,
         phone: normalized.phone,
         first_name: normalized.first_name,
@@ -18,16 +19,20 @@ exports.upsertWebsiteLead = async (leadMetaId, answers, meta) => {
         platform_key: 'website',
         source_page_id: meta.page_id || null,
         source_page_name: meta.page_url ? new URL(meta.page_url).hostname : null,
+        status: 'new',
+        assigned_user_id: null,
+        assigned_at: null,
     };
 
     // Save to database
-    await LeadModel.upsertLeadData(leadMetaId, leadData);
+    const result = await LeadModel.upsertLeadData(leadMetaId, leadData);
 
     // Mark as processed in lead_meta
     const { executeQuery } = require('../config/database');
-    await executeQuery('UPDATE lead_meta SET status = ? WHERE id = ?', ['processed', leadMetaId]);
+    await executeQuery('UPDATE lead_meta SET processing_status = ? WHERE id = ?', ['processed', leadMetaId]);
 
-    return leadMetaId;
+    // Return the lead ID from lead_data (this is the main lead identifier)
+    return result.insertId || result.affectedRows;
 };
 
 function normalizeWebsiteAnswers(answers) {
@@ -36,7 +41,7 @@ function normalizeWebsiteAnswers(answers) {
     // Map common field variations
     normalized.email = answers.email || answers['work_email'] || answers['business_email'] || answers['e-mail'] || null;
     normalized.phone = answers.phone || answers['phone_number'] || answers['mobile_phone'] || answers['cell_phone'] || answers['telephone'] || null;
-    
+
     // Handle name fields
     let firstName = answers['first_name'] || answers['firstname'] || answers['fname'] || null;
     let lastName = answers['last_name'] || answers['lastname'] || answers['lname'] || null;
@@ -47,7 +52,7 @@ function normalizeWebsiteAnswers(answers) {
         const parts = String(fullName).trim().split(/\s+/);
         firstName = parts[0] || null;
         lastName = parts.length > 1 ? parts.slice(1).join(' ') : null;
-    } 
+    }
     // If we have first/last but no full name, combine them
     else if (!fullName && (firstName || lastName)) {
         fullName = [firstName, lastName].filter(Boolean).join(' ');

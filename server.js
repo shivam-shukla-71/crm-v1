@@ -15,12 +15,17 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.get('/', (req, res) => {
-    res.json({ message: 'Welcome to CRM API v1.0' });
+    res.json({ message: 'Welcome to SalesMagnetCRM API v1.0' });
 });
 
 // API Routes (consolidated)
 app.use('/api/auth', require('./routes/auth.routes'));
-app.use('/api/entities', require('./routes/entity.routes'));
+app.use('/api/leads', require('./routes/lead.routes'));
+app.use('/api/assignments', require('./routes/lead-assignment.routes'));
+app.use('/api/stages', require('./routes/lead-stage.routes'));
+app.use('/api/activities', require('./routes/lead-activity.routes'));
+app.use('/api/analytics', require('./routes/analytics.routes'));
+app.use('/api/reporting', require('./routes/reporting.routes'));
 app.use('/webhooks', require('./routes/webhooks.routes'));
 
 // Error handling middleware
@@ -35,5 +40,5 @@ app.use('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`SalesMagnetCRM Server is running on port ${PORT}`);
 });
